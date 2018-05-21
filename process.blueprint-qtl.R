@@ -33,6 +33,7 @@ qtl$z <- qnorm(qtl$V4/2,lower.tail=FALSE)*sign(qtl$V5)
 outqtl <- qtl[,c(10,2,11,3,12,13,5,14)]
 colnames(outqtl) <- c("chr","rs","snp.loc","med.id","qtl.a1","qtl.a2","qtl.beta","qtl.z")
 
+ld <- ld[ld$chrnum %in% qtl$chr,]
 sapply(1:dim(ld)[1],function(x){
 	filename=paste0(outdir,"/",rownames(ld)[x],"_qtl.txt.gz")
 	curr=outqtl[outqtl$chr==ld[x,4]&outqtl[,3]>ld[x,2]&outqtl[,3]<=ld[x,3],]
