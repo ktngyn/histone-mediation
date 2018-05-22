@@ -55,17 +55,22 @@ take.multivar <- function(.med, plink, univar.tab) {
         mutate(qtl.se = qtl.beta / qtl.z) %>%
             select(-missing, -qtl.a1, -qtl.a2)
 
-    .effect <- matrix(.univar$qtl.beta, ncol = 1)
-    .se <- matrix(.univar$qtl.se, ncol = 1)
-    .xx <- plink$BED[, .univar$x.pos, drop = FALSE]
+    pp <- nrow(.univar)
 
-    n <- plink.bp$FAM %>% nrow()
+    .effect <- matrix(.univar$qtl.beta, nrow = pp, ncol = 1)
+    .se <- matrix(.univar$qtl.se, nrow = pp, ncol = 1)
+    .xx <- plink$BED[, .univar$x.pos, drop = FALSE] %>%
+        scale()
 
-    vb.opt <- list(vbiter = 5000, tol = 1e-8, eigen.tol = 1e-2, gammax = 1e4,
-                   pi = -1, tau = -4, do.hyper = FALSE,
-                   do.rescale = FALSE, do.stdize = FALSE,
-                   rate = 1e-2, decay = -1e-2, print.interv = 1000)
-    
+    n <- plink$FAM %>% nrow()
+
+    vb.opt <- list(vbiter = 5000, tol = 1e-8,
+                   eigen.tol = 1e-2, gammax = 1e2,
+                   pi.ub = -0, pi.lb = -2, tau = -8,
+                   do.hyper = TRUE, do.rescale = FALSE,
+                   rate = 1e-2, decay = -1e-2,
+                   print.interv = 100)
+
     zqtl.out <- fit.zqtl(effect = .effect, effect.se = .se, X = .xx, n = n, options = vb.opt)
 
     ret <- effect2tab(zqtl.out$param) %>%
@@ -73,7 +78,9 @@ take.multivar <- function(.med, plink, univar.tab) {
             rename(multi.beta = theta, multi.se = theta.se, multi.lodds = lodds)
 
     ret <- bind_cols(.univar, ret) %>% mutate(med.id = .med) %>%
-        mutate(qtl.z = signif(qtl.z, 2), qtl.se = signif(qtl.se, 2), qtl.beta = signif(qtl.beta, 2))
+        mutate(qtl.z = signif(qtl.z, 2),
+               qtl.se = signif(qtl.se, 2),
+               qtl.beta = signif(qtl.beta, 2))
 }
 
 univar.tab <- read_tsv(univar.input.file)

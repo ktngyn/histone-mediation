@@ -53,12 +53,14 @@ subset.plink <- function(plink.hdr, chr, plink.lb, plink.ub, temp.dir) {
 take.matched <- function(.med, x.bim, univar.tab) {
     require(dplyr)
 
-    .univar <- univar.tab %>% dplyr::filter(med.id == .med)
+    .univar <- univar.tab %>%
+        dplyr::filter(med.id == .med) %>%
+            dplyr::select(-rs)
 
     if('x.pos' %in% colnames(x.bim)) {
-        ret <- x.bim %>% left_join(.univar)
+        ret <- x.bim %>% left_join(.univar, by = c('chr', 'snp.loc'))
     } else {
-        ret <- x.bim %>% mutate(x.pos = 1:n()) %>% left_join(.univar)
+        ret <- x.bim %>% mutate(x.pos = 1:n()) %>% left_join(.univar, by = c('chr', 'snp.loc'))
     }
 
     ret.matched <- ret %>% na.omit() %>%
