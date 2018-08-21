@@ -1,0 +1,30 @@
+# Setting the inclusion threshold for QTLs in CaMMEL
+
+## Aims
+
+We think we should not include QTLs with very weak effects (as estimated by zQTL) in CaMMEL analysis because we want to avoid too many "weak instruments". Weak instruments are instrumental variables that explain a tiny proportion of the variance in Y (e.g. IBD risk) and can make accurately estimating parameters and error terms difficult.
+
+But what threshold separates "weak" instruments from acceptable ones? Here, we will explore a few different thresholds of multivariate QTL effect log odds.
+
+### Counts
+
+```{r, echo=FALSE}
+counts <- read.table('qtlcounts.txt.gz',sep="\t",header=FALSE)
+counts <- reshape(counts,idvar="V1",timevar="V2",direction="wide")
+colnames(counts) <- c("qtl_group",paste("thres",0:-4,sep="."))
+counts
+```
+
+### Differences in CaMMEL results
+
+so I'll have to run cammel with a few different thresholds... 
+
+how does the distribution of {associated GWAS p-values, PVE} change with the threshold? 
+
+if you run cammel w/o QTL filtering and then filter the output by PVE/GWAS-pvalue, how do the predicted mediators compare to the output when you do QTL filtering beforehand?
+
+Of the mediators shared when filtering and not, do they tend to have higher PVE/more GWAS significance?
+
+## 
+
+

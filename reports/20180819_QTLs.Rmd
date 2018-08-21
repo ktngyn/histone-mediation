@@ -1,0 +1,48 @@
+# Properties of the Blueprint QTLs
+
+## Aims
+
+In general, I want to compare QTLs from the different cell types, in order to figure out what the consequences of using the "wrong" cell type for mediation analysis might be.
+
+* correlation between log odds/beta/z-score of the QTLs
+* what % of significant QTLs are shared/unique between cell types. like a venn diagram
+* how many SNPs are significant QTLs in >1 cell type but don't have concordant effects? (gene, direction) 
+* how many SNPs are significant QTLs for multiple genes? how many genes is typical?
+* do the differences seem random/related to power issues or do they seem to reflect a biological pattern?
+
+I want to answer this for the univariate and multivariate QTLs, for each type of QTL. I'll also have to do something to account for what threshold counts as a "significant" QTL.
+
+Another question: how many SNPs have data for each cell/QTL type? not quite related to cell type problem, but related to combining QTLs. 
+
+and after running cammel: are the significant mediators more likely to be associated with QTLs with lowest p-values? cell-type specific QTLs or shared QTLs? are the cell-type specific significant mediators linked to cell-type specific QTLs?
+
+### Known
+
+What do we know about the QTLs from the paper?
+Figure 3 answers a lot of these questions for the univariate QTLs (Figure 4 for splicing QTLs)
+
+* correlation between betas (looks like around 0.7 for K4me1, K27ac, gene; 0.9 for DNAme)
+* what % of significant QTLs are shared/unique between cell types (around 20-30% unique for genes; 2-10% for DNAme; 30-50% for histones and splicing)
+* how many SNPs are significant QTLs for multiple genes, how many genes is typical (1 is median, though can be way more)
+
+But not: 
+
+* specific quantification of SNPs with discordant effects, though they did calculate correlation between betas (effect size) 
+* do the differences seem random/related to power issues or do they seem to reflect a biological pattern? 
+
+## Analysis
+
+what will I have to do myself?
+
+each QTL should be identified by SNP-gene-effectDirection
+
+## Discussion
+
+I guess I should ask what I can actually conclude from this type of analysis. Is there a better/more direct way to answer the question: "What might be the consequences of using the "wrong" cell type for mediation analysis?"
+
+here, what if you permute the QTLs? so snp-medid pairs. but don't permute the GWAS values. and then calculate cammel values and/or do the TWAS thing? 
+
+in order to figure out if a artificial cell type would tend to have any effects 
+
+
+
