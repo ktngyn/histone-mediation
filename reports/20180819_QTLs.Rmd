@@ -1,3 +1,25 @@
+---
+title: Cell-type specificity of Blueprint QTLs
+author: Khoi Nguyen
+date: "`r Sys.Date()`"
+---
+
+<!-- make font smaller for code -->
+<style type="text/css">
+pre {
+    font-size: 8px
+}
+</style>
+
+```{r GlobOpt, include = FALSE}
+################################################################
+fig.dir <- 'Fig/20180819_QTLs/'
+dir.create(fig.dir, recursive = TRUE, showWarnings = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.path = fig.dir, fig.width = 4, fig.height = 4)
+options(stringsAsFactors = FALSE)
+```
+
 # Properties of the Blueprint QTLs
 
 ## Aims
@@ -32,17 +54,218 @@ But not:
 
 ## Analysis
 
-what will I have to do myself?
+### Cell-type specific SNPs
 
-each QTL should be identified by SNP-gene-effectDirection
+In the figures below, one QTL is a unique combination of SNP, feature (e.g. a gene, a histone peak, etc.), and effect direction. I counted the number of QTLs shared in different ways between the cell types (see the Venn diagram). To calculate the percentage of significant SNPs each category represents, I used the mean number of significant SNPs in the groups involved in each category (e.g. monocytes and neutrophils for the "mn" category). 
+
+Looking at these figures, many more QTLs than I expected are cell-type specific (around or over 80% for histone peaks, gene expression, PSI; around 60% for DNA methylation). 
+
+```{r}
+qtls <- read.table('masterTable.sigQTLs.txt.gz',sep="\t",header=FALSE)
+qtls$dir <- sign(qtls$V5)
+qtls$ID <- paste(qtls$V3,qtls$V4,qtls$dir,sep="|")
+
+vennmat <- sapply(unique(qtls$V2),function(Q){
+	curr <- qtls[qtls$V2==Q,]
+	m <- unique(curr$ID[curr$V1=="mono"])
+	n <- unique(curr$ID[curr$V1=="neut"])
+	t <- unique(curr$ID[curr$V1=="tcel"])
+	cts <- c(length(m),length(n),length(t))
+	cvect <- c(mean(cts),mean(cts[1:2]),mean(cts[c(1,3)]),mean(cts[2:3]),cts)
+
+	m1 <- setdiff(m,n); m_only <- length(setdiff(m1,t)) # mono only
+	m1 <- intersect(m,n); mn <- length(setdiff(m1,t)) # mono, neut, not tcel
+	m1 <- intersect(m,n); mnt <- length(intersect(m1,t)) # mono, neut, tcel
+	m1 <- intersect(m,t); mt <- length(setdiff(m1,n)) # mono, tcel, not neut
+	m1 <- intersect(n,t); nt <- length(setdiff(m1,m)) # neut, tcel, not mono
+	m1 <- setdiff(n,m); n_only <- length(setdiff(m1,t)) # neut only
+	m1 <- setdiff(t,n); t_only <- length(setdiff(m1,m)) # tcel only
+	
+	v1 <- c(mnt,mn,mt,nt,m_only,n_only,t_only)
+	v2 <- 100*v1/cvect 
+	return(cbind(v1,v2))
+})
+colnames(vennmat) <- unique(qtls$V2)
+rownames(vennmat) <- c("mnt.num","mn.num","mt.num","nt.num","m.num","n.num","t.num","mnt.pct","mn.pct","mt.pct","nt.pct","m.pct","n.pct","t.pct")
+
+png(paste0(fig.dir,"/vennbarplot_percent.png"),height=1800,width=500,res=150)
+par(mfrow=c(5,1),mar=c(5,5,2,1))
+sapply(1:5,function(x){
+	barplot(vennmat[8:14,x],main=colnames(vennmat)[x],names=c("mnt","mn","mt","nt","m","n","t"),ylim=c(0,100),ylab="% of QTLs",xlab="Venn group")
+})
+dev.off()
+```
+
+### Correlation between QTLs
+
+Next, I looked at the correlation between the effect sizes of QTLs that are significant in all three cell types. In this case, one QTL is a unique combination of SNP and feature.
+
+The correlation between effect size is actually very high for these shared QTLs, generally at least 0.9 for all of the QTL types and cell type pairs.
+
+I also looked at all QTLs that are significant in at least one cell type. The correlation between effect size beta is much lower here, though mostly positive. The correlation between log odds for these QTLs is generally low and sometimes negative. 
+
+```{r}
+qtls$ID <- paste(qtls$V3,qtls$V4,sep="|")
+cormat <- sapply(unique(qtls$V2),function(Q){
+	curr <- qtls[qtls$V2==Q,]
+	m <- unique(curr$ID[curr$V1=="mono"])
+	n <- unique(curr$ID[curr$V1=="neut"])
+	t <- unique(curr$ID[curr$V1=="tcel"])
+	
+	m1 <- intersect(m,n); mnt <- intersect(m1,t) # mono, neut, tcel
+	shared <- curr[curr$ID %in% mnt,]
+	
+	v1 <- cor(shared$V5[shared$V1=="mono"],shared$V5[shared$V1=="neut"])
+	v2 <- cor(shared$V5[shared$V1=="mono"],shared$V5[shared$V1=="tcel"])
+	v3 <- cor(shared$V5[shared$V1=="neut"],shared$V5[shared$V1=="tcel"])
+
+	return(c(v1,v2,v3))
+})
+colnames(cormat) <- unique(qtls$V2)
+rownames(cormat) <- c("mono-neut","mono-tcel","neut-tcel")
+
+png(paste0(fig.dir,"/corbarplot.png"),height=1800,width=500,res=150)
+par(mfrow=c(5,1),mar=c(5,5,2,1))
+sapply(1:5,function(x){
+        barplot(cormat[,x],main=colnames(cormat)[x],ylim=c(0,1),ylab="Correlation")
+	abline(h=c(0.8,0.9),lty=2)
+})
+dev.off()
+
+qtlPlus <- read.table('tmp.addTable.txt.gz',sep="\t",header=FALSE)
+qtlPlus$ID <- paste(qtlPlus$V3,qtlPlus$V4,sep="|")
+cormat2 <- sapply(unique(qtlPlus$V2),function(Q){
+	curr <- qtlPlus[qtlPlus$V2==Q,]
+	m <- curr[curr$V1=="mono",]; m <- m[order(m$ID),]
+	n <- curr[curr$V1=="neut",]; n <- n[order(n$ID),]
+	t <- curr[curr$V1=="tcel",]; t <- t[order(t$ID),]
+	
+	v1 <- cor(m$V6,n$V6)
+	v2 <- cor(m$V6,t$V6)
+	v3 <- cor(n$V6,t$V6)
+	v4 <- cor(m$V5,n$V5)
+	v5 <- cor(m$V5,t$V5)
+	v6 <- cor(n$V5,t$V5)
+	
+	return(c(v1,v2,v3,v4,v5,v6))
+})
+colnames(cormat2) <- unique(qtlPlus$V2)
+rownames(cormat2) <- c("mono-neut.lodds","mono-tcel.lodds","neut-tcel.lodds","mono-neut.beta","mono-tcel.beta","neut-tcel.beta")
+
+png(paste0(fig.dir,"/notsharedcorbarplot.png"),height=1800,width=700,res=150)
+par(mfrow=c(5,2),mar=c(5,5,2,1))
+sapply(1:5,function(x){
+        barplot(cormat2[1:3,x],names=c("mono-neut","mono-tcel","neut-tcel"),main=colnames(cormat2)[x],ylim=c(-.5,1),ylab="Correlation of log odds",las=2)
+        barplot(cormat2[4:6,x],names=c("mono-neut","mono-tcel","neut-tcel"),main=colnames(cormat2)[x],ylim=c(-.5,1),ylab="Correlation of beta",las=2)
+})
+dev.off()
+```
+
+### Discordant SNPs
+
+Here, I'm defining discordant SNPs as SNPs that are significant QTLs in >1 cell type but do not have the same effect (gene, direction) in both cell types. 
+
+In general, there are on the order of hundreds of discordant SNPs between any two of these cell types, for each QTL type (methylation has more, on the order of thousands). This represents 40-50% of the SNPs that have significant effects in both cell types, which seems like a lot. Shared SNPs associated with eQTLs are a little less likely to be discordant, with 30-40% of shared SNPs being discordant. However, since there aren't that many SNPs that are significant QTLs in multiple cell types (except for DNAme), only about 1-10% of SNPs associated with significant QTLs in one given cell type are discordant. 
+
+```{r}
+qtls$ID <- paste(qtls$V3,qtls$V4,qtls$dir,sep="|")
+
+discordmat <- sapply(unique(qtls$V2),function(Q){
+	curr <- qtls[qtls$V2==Q,]
+	m <- unique(curr$V3[curr$V1=="mono"]) 
+	n <- unique(curr$V3[curr$V1=="neut"])
+	t <- unique(curr$V3[curr$V1=="tcel"])
+	
+	mn <- intersect(m,n)
+	mt <- intersect(m,t)
+	nt <- intersect(n,t)
+	
+	getDiscordant <- function(idlist,c1,c2) {
+		data <- curr[curr$V3 %in% idlist,] 
+		e1 <- setdiff(data$ID[data$V1==c1],data$ID[data$V1==c2])
+		e2 <- setdiff(data$ID[data$V1==c2],data$ID[data$V1==c1])
+		snps <- length(unique(data$V3[data$ID %in% c(e1,e2)]))
+	}
+
+	vect <- c(getDiscordant(mn,"mono","neut"),getDiscordant(mt,"mono","tcel"),getDiscordant(nt,"tcel","neut"))
+	c1 <- c(mean(length(m),length(n)),mean(length(m),length(t)),mean(length(n),length(t)))
+	c2 <- c(length(mn),length(mt),length(nt))
+	return(c(vect,100*vect/c1,100*vect/c2))
+})
+colnames(discordmat) <- unique(qtls$V2)
+rownames(discordmat) <- c("mono-neut","mono-tcel","neut-tcel","mono-neut.pctsnps","mono-tcel.pctsnps","neut-tcel.pctsnps","mono-neut.pctshared","mono-tcel.pctshared","neut-tcel.pctshared")
+
+png(paste0(fig.dir,"/discordantbarplot.png"),height=1800,width=500,res=150)
+par(mfrow=c(5,1),mar=c(5,5,2,1))
+sapply(1:5,function(x){
+        barplot(t(matrix(discordmat[4:9,x],nrow=3)),names=c("mono-neut","mono-tcel","neut-tcel"),main=colnames(cormat)[x],ylim=c(0,100),ylab="% SNPs discordant",beside=TRUE,legend=c("Significant","Shared"))
+	text(x=c(2,5,8),y=discordmat[7:9,x]+5,labels=as.integer(discordmat[1:3,x]),cex=0.8)
+})
+dev.off()
+```
+
+### QTLs per SNP
+
+The figure below shows the distribution of number of features that a SNP is a significant QTL for in a given cell type.
+
+Most SNPs are significant QTLs for only 1 feature (~80-90%). However, some SNPs may be QTLs for up to ~20 features (hQTL, eQTL, psiQTL) / 100 features (meQTL). In general, SNPs associated with many features are more common for psiQTLs and meQTLs.
+
+```{r}
+qtls$ID <- paste(qtls$V3,qtls$V4,sep="|")
+
+phenoPerSNP <- sapply(unique(qtls$V2),function(Q){
+	curr <- qtls[qtls$V2==Q,]
+	counts <- as.vector(table(paste0(curr$V1,curr$V3)))
+})
+multiplePct <- sapply(phenoPerSNP,function(L){
+	100*length(L[L>1])/length(L)
+})
+
+png(paste0(fig.dir,"phenoPerSNPboxplot.png"),height=800,width=500,res=150)
+	par(mar=c(4,4,1,1),mfrow=c(2,1))
+        boxplot(phenoPerSNP,names=unique(qtls$V2),las=2,ylab="Num effects per SNP")
+	barplot(multiplePct,names=unique(qtls$V2),las=2,ylab="% SNPs with >1 effect",ylim=c(0,100))
+dev.off()
+```
+
+### Patterns in cell-type specific QTLs
+
+Do the differences seem random/related to power issues or do they seem to reflect a biological pattern?
+
+Not done yet, but here are a couple ideas:
+
+* specific SNPs enriched in the regulatory regions of the corresponding cell type 
+* GO/GREAT enrichment of features associated with celltype-specific QTLs
 
 ## Discussion
 
-I guess I should ask what I can actually conclude from this type of analysis. Is there a better/more direct way to answer the question: "What might be the consequences of using the "wrong" cell type for mediation analysis?"
+SNPs seem much more cell-type specific than I anticipated, and there are a reasonable number of discordant SNPs! So maybe using the "wrong" cell type will have a greater effect than I anticipated...
 
-here, what if you permute the QTLs? so snp-medid pairs. but don't permute the GWAS values. and then calculate cammel values and/or do the TWAS thing? 
+I should also ask what I can actually conclude from this type of analysis. Is there a better/more direct way to answer the question: "What might be the consequences of using the 'wrong' cell type for mediation analysis?"
 
-in order to figure out if a artificial cell type would tend to have any effects 
+Maybe I can permute the multivariate QTLs (for each SNP, assign it a new feature and a new lodds/beta/se). Then, using the original (unpermuted) GWAS statistics, calculate CaMMEL values and/or TWAS p-values for predicted mediators. Are many fewer mediators predicted to be significant for these artificial cell types? Are the predicted mediators less enriched in motifs/pathways?  
+
+## Appendix
+
+### Number of SNPs with QTL data for each cell and QTL type 
+
+	mono	neut	tcel
+gene	4814090	4679453	4767042
+K27AC	5052844	4909476	4794275
+K4ME1	5134922	5076785	5072939
+psi	3893724	3315695	3961636
+meth	5225604	5232288	5217321
+
+These numbers are from the original files downloaded from the Blueprint website. For most QTL types, there are 5 million SNPs for each cell type, but only >3 million for PSI QTLs, which is significantly fewer. Not sure what might lead to fewer SNPs... since all of these were generated from the same 200 donors. Maybe the SNP chips used in different labs? Having fewer PSI features in certain regions of the genome, such that some SNPs are not in cis with any PSI features?
+
+	mono	
+gene	2783288
+K27AC	2829645
+K4ME1	2900988
+psi	2252791 
+meth	2723134
+
+These numbers are from the zQTL output. The difference between PSI and the other QTL types isn't as stark here.
 
 
 
